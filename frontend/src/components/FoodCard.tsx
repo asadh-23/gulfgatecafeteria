@@ -53,13 +53,13 @@ export default function FoodCard({ item, onClick }: FoodCardProps) {
             {item.name}
           </h3>
           <div className="flex-shrink-0 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] text-sm sm:text-base font-bold rounded-lg shadow-md group-hover:shadow-lg group-hover:shadow-[#FFC107]/50 transition-all duration-300">
-            {item.price}
-          </div>
+              AED {item.price}
+            </div>
         </div>
 
         {/* Description */}
         <p className="text-xs sm:text-sm text-gray-400 line-clamp-2 leading-relaxed group-hover:text-gray-300 transition-colors duration-300">
-          {item.short_description}
+          {item.short_description || item.description || ''}
         </p>
 
         {/* Category Badge */}

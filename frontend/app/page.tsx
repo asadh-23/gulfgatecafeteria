@@ -1,20 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FoodCard from '@/src/components/FoodCard';
 import FoodModal from '@/src/components/FoodModal';
 import PageTransition from '@/src/components/PageTransition';
-import { menuItems, categories } from '@/src/data/menu';
+import { categories as staticCategories } from '@/src/data/menu';
 import { MenuItem } from '@/src/types';
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { fetchProducts, setActiveCategory } from '@/src/store/productsSlice';
 
 export default function Home() {
+  const dispatch = useAppDispatch();
+  const { items: products, loading, activeCategory } = useAppSelector((state) => state.products);
+
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('all');
 
-  const filteredItems = activeCategory === 'all' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === activeCategory);
+  useEffect(() => {
+    dispatch(fetchProducts());
+  }, [dispatch]);
+
+  // Build categories dynamically from products
+  const dynamicCategories = [
+    { id: 'all', name: 'All Items', icon: '🍽️' },
+    ...Array.from(new Set(products.map((p) => p.category))).map((cat) => {
+      const staticCat = staticCategories.find(
+        (c) => c.id === cat || c.name.toLowerCase() === cat.toLowerCase()
+      );
+      return {
+        id: cat,
+        name: staticCat?.name || cat.charAt(0).toUpperCase() + cat.slice(1),
+        icon: staticCat?.icon || '🍽️',
+      };
+    }),
+  ];
+
+  const filteredItems = [...(activeCategory === 'all'
+    ? products
+    : products.filter((item) => item.category === activeCategory))]
+    .sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
   const handleCardClick = (item: MenuItem) => {
     setSelectedItem(item);
@@ -96,10 +120,10 @@ export default function Home() {
 
           {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {categories.map((category) => (
+            {dynamicCategories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setActiveCategory(category.id)}
+                onClick={() => dispatch(setActiveCategory(category.id))}
                 className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 overflow-hidden group ${
                   activeCategory === category.id
                     ? 'bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] shadow-lg shadow-[#FFC107]/30 scale-105'
@@ -118,15 +142,21 @@ export default function Home() {
           </div>
 
           {/* Menu Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 animate-stagger">
-            {filteredItems.map((item) => (
-              <FoodCard
-                key={item.id}
-                item={item}
-                onClick={() => handleCardClick(item)}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="w-10 h-10 border-4 border-[#FFC107] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 animate-stagger">
+              {filteredItems.map((item) => (
+                <FoodCard
+                  key={item._id || item.id}
+                  item={item}
+                  onClick={() => handleCardClick(item)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* No Results */}
           {filteredItems.length === 0 && (
