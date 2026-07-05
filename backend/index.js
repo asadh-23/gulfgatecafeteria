@@ -9,7 +9,10 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3001',
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -28,6 +31,7 @@ app.get('/', (req, res) => {
 // API routes will go here
 // Example: app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
+app.use('/api/products', require('./src/routes/productRoutes'));
 
 // 404 Handler
 app.use((req, res) => {

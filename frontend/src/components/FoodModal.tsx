@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 import { MenuItem } from '@/src/types';
+import { useAppDispatch } from '@/src/store/hooks';
+import { addToCart, openCart } from '@/src/store/cartSlice';
 
 interface FoodModalProps {
   item: MenuItem | null;
@@ -11,6 +13,14 @@ interface FoodModalProps {
 }
 
 export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
+  const dispatch = useAppDispatch();
+
+  const handleAddToCart = () => {
+    if (!item) return;
+    dispatch(addToCart(item));
+    dispatch(openCart());
+    onClose();
+  };
   // Close modal on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -135,7 +145,7 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-6 py-3 sm:py-4 bg-gradient-to-r from-[#FFC107] via-[#FFD54F] to-[#FFC107] hover:from-[#FFD54F] hover:via-[#FFC107] hover:to-[#FFD54F] active:scale-95 text-[#121212] font-bold rounded-xl shadow-lg hover:shadow-2xl hover:shadow-[#FFC107]/50 transition-all duration-300 transform sm:hover:scale-105 btn-glow">
+            <button onClick={handleAddToCart} className="flex-1 px-6 py-3 sm:py-4 bg-gradient-to-r from-[#FFC107] via-[#FFD54F] to-[#FFC107] hover:from-[#FFD54F] hover:via-[#FFC107] hover:to-[#FFD54F] active:scale-95 text-[#121212] font-bold rounded-xl shadow-lg hover:shadow-2xl hover:shadow-[#FFC107]/50 transition-all duration-300 transform sm:hover:scale-105 btn-glow">
               <div className="flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
