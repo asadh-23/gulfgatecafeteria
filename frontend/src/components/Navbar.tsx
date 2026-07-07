@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
-import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal } from '@/src/store/cartSlice';
-import { selectSavedCount, hydrateSaved } from '@/src/store/savedSlice';
+import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal, clearCart } from '@/src/store/cartSlice';
+import { selectSavedCount, hydrateSaved, clearSaved } from '@/src/store/savedSlice';
 import { selectUser, selectIsLoggedIn, logout } from '@/src/store/authSlice';
 import CartDrawer from './CartDrawer';
 import OrderModal from './OrderModal';
@@ -230,7 +230,12 @@ export default function Navbar() {
                     {/* Logout */}
                     <div className="border-t border-[#FFC107]/10 py-2">
                       <button
-                        onClick={() => { dispatch(logout()); setShowUserMenu(false); }}
+                        onClick={() => { 
+                          dispatch(logout()); 
+                          dispatch(clearCart());
+                          dispatch(clearSaved());
+                          setShowUserMenu(false); 
+                        }}
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
