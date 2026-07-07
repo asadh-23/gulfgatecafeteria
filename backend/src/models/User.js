@@ -1,18 +1,13 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
-/**
- * User Schema
- * Example model for reference - customize based on your requirements
- */
 const userSchema = new mongoose.Schema(
   {
-    username: {
+    name: {
       type: String,
-      required: [true, 'Username is required'],
-      unique: true,
+      required: [true, 'Name is required'],
       trim: true,
-      minlength: [3, 'Username must be at least 3 characters long'],
-      maxlength: [50, 'Username cannot exceed 50 characters']
+      maxlength: [80, 'Name cannot exceed 80 characters'],
     },
     email: {
       type: String,
@@ -20,56 +15,42 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        'Please provide a valid email address'
-      ]
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Invalid email address'],
+    },
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      trim: true,
     },
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters long'],
-      select: false // Don't include password in queries by default
+      minlength: [6, 'Password must be at least 6 characters'],
+      select: false,
     },
     role: {
       type: String,
-      enum: ['customer', 'staff', 'admin'],
-      default: 'customer'
-    },
-    refreshToken: {
-      type: String,
-      select: false
+      enum: ['customer', 'admin'],
+      default: 'customer',
     },
     isActive: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
-  {
-    timestamps: true, // Adds createdAt and updatedAt
-    toJSON: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        delete ret.password;
-        delete ret.refreshToken;
-        return ret;
-      }
-    }
-  }
+  { timestamps: true }
 );
 
-// Indexes for better query performance
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
+// Hash password before save
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
 
-// Instance methods
-userSchema.methods.toSafeObject = function () {
-  const user = this.toObject();
-  delete user.password;
-  delete user.refreshToken;
-  return user;
+// Compare password
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

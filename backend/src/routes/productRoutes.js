@@ -6,6 +6,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  duplicateProduct,
 } = require("../controllers/productController");
 const { uploadProductImages } = require("../middleware/upload");
 
@@ -17,6 +18,9 @@ router.get("/:id", getProductById);
 
 // @route   POST /api/products
 router.post("/", uploadProductImages, createProduct);
+
+// @route   POST /api/products/:id/duplicate
+router.post("/:id/duplicate", duplicateProduct);
 
 // @route   PUT /api/products/:id
 router.put("/:id", uploadProductImages, updateProduct);

@@ -203,4 +203,6 @@ export const categories = [
   { id: 'juices', name: 'Fresh Juices', icon: '🥤' },
   { id: 'appetizers', name: 'Appetizers', icon: '🥙' },
   { id: 'desserts', name: 'Desserts', icon: '🍰' },
+  { id: 'rice', name: 'Rice', icon: '🍚' },
+  { id: 'shake', name: 'Shake', icon: '🧋' },
 ];

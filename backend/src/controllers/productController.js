@@ -54,7 +54,7 @@ const getProductById = async (req, res, next) => {
 const createProduct = async (req, res, next) => {
   try {
     const {
-      name, description, ingredients, category,
+      name, description, full_description, ingredients, category,
       price, stock, isPopular, isSpicy, spiceLevelEnabled,
     } = req.body;
 
@@ -73,7 +73,7 @@ const createProduct = async (req, res, next) => {
 
     const product = await Product.create({
       name,
-      description: description || "",
+      description: full_description || description || "",
       ingredients: ingredients || "",
       category,
       price: Number(price),
@@ -119,6 +119,11 @@ const updateProduct = async (req, res, next) => {
         }
       }
     });
+
+    // Accept full_description as alias for description
+    if (req.body.full_description !== undefined) {
+      product.description = req.body.full_description;
+    }
 
     // New thumbnail uploaded
     if (req.files?.image?.[0]) {
@@ -169,10 +174,44 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Duplicate a product
+ * @route   POST /api/products/:id/duplicate
+ * @access  Private (admin)
+ */
+const duplicateProduct = async (req, res, next) => {
+  try {
+    const original = await Product.findById(req.params.id);
+    if (!original) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const duplicate = await Product.create({
+      name: `${original.name} (Copy)`,
+      description: original.description,
+      ingredients: original.ingredients,
+      category: original.category,
+      price: original.price,
+      stock: original.stock,
+      image: original.image,       // reuse same Cloudinary URL
+      gallery: original.gallery,   // reuse same gallery URLs
+      isPopular: false,             // reset popular flag on copy
+      isSpicy: original.isSpicy,
+      spiceLevelEnabled: original.spiceLevelEnabled,
+      isActive: false,              // start as inactive so admin can review before publishing
+    });
+
+    res.status(201).json({ success: true, message: "Product duplicated", data: duplicate });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
+  duplicateProduct,
 };

@@ -8,11 +8,13 @@ export interface CartItem extends MenuItem {
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
+  isOrderModalOpen: boolean;
 }
 
 const initialState: CartState = {
   items: [],
   isOpen: false,
+  isOrderModalOpen: false,
 };
 
 const cartSlice = createSlice({
@@ -66,6 +68,12 @@ const cartSlice = createSlice({
     closeCart(state) {
       state.isOpen = false;
     },
+    openOrderModal(state) {
+      state.isOrderModalOpen = true;
+    },
+    closeOrderModal(state) {
+      state.isOrderModalOpen = false;
+    },
   },
 });
 
@@ -78,6 +86,8 @@ export const {
   toggleCart,
   openCart,
   closeCart,
+  openOrderModal,
+  closeOrderModal,
 } = cartSlice.actions;
 
 // Selectors
@@ -87,5 +97,6 @@ export const selectCartTotal = (state: { cart: CartState }) =>
 export const selectCartCount = (state: { cart: CartState }) =>
   state.cart.items.reduce((sum, item) => sum + item.quantity, 0);
 export const selectCartIsOpen = (state: { cart: CartState }) => state.cart.isOpen;
+export const selectOrderModalOpen = (state: { cart: CartState }) => state.cart.isOrderModalOpen;
 
 export default cartSlice.reducer;

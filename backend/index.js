@@ -30,8 +30,12 @@ app.get('/', (req, res) => {
 
 // API routes will go here
 // Example: app.use('/api/users', require('./src/routes/userRoutes'));
+app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/orders', require('./src/routes/orderRoutes'));
+app.use('/api/revenue', require('./src/routes/revenueRoutes'));
+app.use('/api/categories', require('./src/routes/categoryRoutes'));
 
 // 404 Handler
 app.use((req, res) => {
