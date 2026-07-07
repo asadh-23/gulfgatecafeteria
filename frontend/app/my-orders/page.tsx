@@ -103,41 +103,26 @@ export default function MyOrdersPage() {
               Showing orders for <span className="text-[#FFC107] font-semibold">{user.name}</span> · {user.phone}
             </p>
           ) : (
-            <p className="text-gray-400 text-sm mt-1">Enter your phone number to track your orders</p>
+            <p className="text-gray-400 text-sm mt-1">Sign in to track your orders</p>
           )}
         </div>
 
-        {/* ── Phone Search — only shown when NOT logged in ── */}
+        {/* ── Not logged in — prompt to sign in ── */}
         {!isLoggedIn && (
-          <div className="bg-[#1A1A1A] rounded-2xl border border-[#FFC107]/20 p-5">
-            <label className="text-sm font-semibold text-gray-300 block mb-2">Phone Number</label>
-            <div className="flex gap-3">
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="e.g. 0501234567"
-                className="flex-1 px-4 py-3 bg-[#121212] border border-[#FFC107]/20 focus:border-[#FFC107] rounded-xl text-white placeholder-gray-500 text-sm outline-none transition-colors"
-              />
-              <button
-                onClick={handleSearch}
-                disabled={loading || !phone.trim()}
-                className="px-6 py-3 bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] font-bold text-sm rounded-xl hover:from-[#FFD54F] hover:to-[#FFC107] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {loading ? (
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                )}
-                Track
-              </button>
+          <div className="bg-[#1A1A1A] rounded-2xl border border-[#FFC107]/20 p-10 flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-[#FFC107]/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-[#FFC107]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
             </div>
+            <div>
+              <p className="text-white font-semibold text-lg">Sign in to view your orders</p>
+              <p className="text-gray-400 text-sm mt-1">Login or register to track your orders and receive notifications.</p>
+            </div>
+            <a href="/"
+              className="px-6 py-3 bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] font-bold text-sm rounded-xl transition-all active:scale-95">
+              Go to Menu & Sign In
+            </a>
           </div>
         )}
 

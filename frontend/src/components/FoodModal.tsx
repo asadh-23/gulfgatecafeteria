@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { MenuItem } from '@/src/types';
-import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { useAppDispatch } from '@/src/store/hooks';
 import { addToCart, openCart } from '@/src/store/cartSlice';
-import { toggleSaved, selectIsSaved } from '@/src/store/savedSlice';
 
 interface FoodModalProps {
   item: MenuItem | null;
@@ -15,8 +14,6 @@ interface FoodModalProps {
 
 export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
   const dispatch = useAppDispatch();
-  const itemId = item?._id || item?.id || '';
-  const isSaved = useAppSelector(selectIsSaved(itemId));
   const [activeImg, setActiveImg] = useState(0);
 
   // Reset gallery index when item changes
@@ -43,11 +40,6 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
     onClose();
   };
 
-  const handleToggleSave = () => {
-    if (!item) return;
-    dispatch(toggleSaved(item));
-  };
-
   // ── Early return ──────────────────────────────────────────────────────────
   if (!isOpen || !item) return null;
 
@@ -72,25 +64,25 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
       <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
 
       {/* Modal */}
-      <div className="relative bg-[#111111] rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[95vh] sm:max-h-[92vh] flex flex-col overflow-hidden border border-[#FFC107]/15 animate-slideUp sm:animate-scaleIn">
+      <div className="relative bg-[#111111] rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-lg h-[92vh] sm:max-h-[92vh] flex flex-col border border-[#FFC107]/15 animate-slideUp sm:animate-scaleIn overflow-hidden">
 
         {/* ── Main Image ── */}
-        <div className="relative flex-shrink-0 w-full bg-[#0a0a0a]" style={{ aspectRatio: '16/9', maxHeight: '320px' }}>
+        <div className="relative flex-shrink-0 w-full bg-[#0a0a0a] overflow-hidden" style={{ height: '260px' }}>
           {images.length > 0 ? (
             <Image
               src={images[activeImg]}
               alt={`${item.name} — photo ${activeImg + 1}`}
               fill
               sizes="(max-width: 640px) 100vw, 512px"
-              className="object-cover transition-all duration-300"
+              className="object-contain object-center transition-all duration-300"
               priority
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-7xl">🍽️</div>
           )}
 
-          {/* Bottom gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#111111] via-transparent to-transparent pointer-events-none" />
+          {/* very subtle bottom gradient */}
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111111] to-transparent pointer-events-none" />
 
           {/* Close button */}
           <button
@@ -178,7 +170,7 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
         )}
 
         {/* ── Scrollable Content ── */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 overscroll-contain" style={{ scrollbarWidth: 'thin', scrollbarColor: '#FFC107 transparent' }}>
 
           {/* Name + Price */}
           <div className="flex items-start justify-between gap-3">
@@ -254,12 +246,11 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
             </p>
           </div>
 
-          <div className="h-2 sm:hidden" />
+          <div className="h-4" />
         </div>
 
         {/* ── Sticky Bottom Actions ── */}
-        <div className="flex-shrink-0 px-5 pb-6 pt-3 border-t border-[#FFC107]/10 bg-[#111111] space-y-2.5">
-
+        <div className="flex-shrink-0 px-5 pb-6 pt-3 border-t border-[#FFC107]/10 bg-[#111111]">
           {/* Add to Cart / Out of Stock */}
           {isOutOfStock ? (
             <div className="w-full py-4 bg-gray-800 border border-gray-700 text-gray-500 font-bold text-base rounded-xl flex items-center justify-center gap-2 cursor-not-allowed">
@@ -279,22 +270,6 @@ export default function FoodModal({ item, isOpen, onClose }: FoodModalProps) {
               Add to Cart — AED {item.price.toFixed(2)}
             </button>
           )}
-
-          {/* Save for later */}
-          <button
-            onClick={handleToggleSave}
-            className={`w-full py-3 rounded-xl border font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 ${
-              isSaved
-                ? 'bg-[#FFC107]/10 border-[#FFC107] text-[#FFC107]'
-                : 'bg-transparent border-[#FFC107]/20 text-gray-400 hover:border-[#FFC107]/50 hover:text-[#FFC107]'
-            }`}
-          >
-            <svg className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            {isSaved ? '♥ Saved for Later' : 'Save for Later'}
-          </button>
-
         </div>
       </div>
     </div>

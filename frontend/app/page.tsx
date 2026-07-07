@@ -4,10 +4,17 @@ import { useState, useEffect } from 'react';
 import FoodCard from '@/src/components/FoodCard';
 import FoodModal from '@/src/components/FoodModal';
 import PageTransition from '@/src/components/PageTransition';
-import { categories as staticCategories } from '@/src/data/menu';
 import { MenuItem } from '@/src/types';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { fetchProducts, setActiveCategory } from '@/src/store/productsSlice';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+interface ApiCategory {
+  _id: string;
+  name: string;
+  isActive: boolean;
+}
 
 export default function Home() {
   const dispatch = useAppDispatch();
@@ -15,27 +22,26 @@ export default function Home() {
 
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
 
   useEffect(() => {
     dispatch(fetchProducts());
+    // Fetch only admin-created categories
+    fetch(`${API}/api/categories`)
+      .then(r => r.json())
+      .then(data => { if (data.success) setApiCategories(data.data.filter((c: ApiCategory) => c.isActive)); })
+      .catch(console.error);
   }, [dispatch]);
 
-  // Build categories by combining static categories with any dynamic ones from products
-  const productCategoryIds = Array.from(new Set(products.map((p) => p.category)));
-  const dynamicCategories = [
-    ...staticCategories,
-    ...productCategoryIds
-      .filter((cat) => !staticCategories.some((sc) => sc.id === cat || sc.name.toLowerCase() === cat.toLowerCase()))
-      .map((cat) => ({
-        id: cat,
-        name: cat.charAt(0).toUpperCase() + cat.slice(1),
-        icon: '🍽️',
-      })),
-  ];
+  // Show all active admin-created categories (even if no products yet)
+  const menuCategories = apiCategories;
 
   const filteredItems = [...(activeCategory === 'all'
     ? products
-    : products.filter((item) => item.category === activeCategory))]
+    : products.filter((item) =>
+        item.category.toLowerCase() === activeCategory ||
+        item.category.toLowerCase().replace(/\s+/g, '_') === activeCategory
+      ))]
     .sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
   const handleCardClick = (item: MenuItem) => {
@@ -118,25 +124,41 @@ export default function Home() {
 
           {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {dynamicCategories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => dispatch(setActiveCategory(category.id))}
-                className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 overflow-hidden group ${
-                  activeCategory === category.id
-                    ? 'bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] shadow-lg shadow-[#FFC107]/30 scale-105'
-                    : 'bg-[#1A1A1A] text-gray-300 border border-[#FFC107]/20 hover:border-[#FFC107] hover:text-[#FFC107] hover:scale-105'
-                }`}
-              >
-                {activeCategory !== category.id && (
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#FFC107]/10 to-[#FFD54F]/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-                )}
-                <span className="relative z-10 flex items-center gap-2">
-                  <span>{category.icon}</span>
-                  {category.name}
-                </span>
-              </button>
-            ))}
+            {/* All Items button */}
+            <button
+              onClick={() => dispatch(setActiveCategory('all'))}
+              className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 overflow-hidden group ${
+                activeCategory === 'all'
+                  ? 'bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] shadow-lg shadow-[#FFC107]/30 scale-105'
+                  : 'bg-[#1A1A1A] text-gray-300 border border-[#FFC107]/20 hover:border-[#FFC107] hover:text-[#FFC107] hover:scale-105'
+              }`}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                <span>🍽️</span> All Items
+              </span>
+            </button>
+
+            {/* Admin-created categories only */}
+            {menuCategories.map((category) => {
+              const catKey = category.name.toLowerCase().replace(/\s+/g, '_');
+              const isActive = activeCategory === catKey || activeCategory === category.name.toLowerCase();
+              return (
+                <button
+                  key={category._id}
+                  onClick={() => dispatch(setActiveCategory(catKey))}
+                  className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 overflow-hidden group ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#FFC107] to-[#FFD54F] text-[#121212] shadow-lg shadow-[#FFC107]/30 scale-105'
+                      : 'bg-[#1A1A1A] text-gray-300 border border-[#FFC107]/20 hover:border-[#FFC107] hover:text-[#FFC107] hover:scale-105'
+                  }`}
+                >
+                  {!isActive && (
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#FFC107]/10 to-[#FFD54F]/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                  )}
+                  <span className="relative z-10">{category.name}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Menu Grid */}
