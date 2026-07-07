@@ -1,62 +1,74 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 interface Category {
-  id: string;
+  _id: string;
   name: string;
   description: string;
-  image: string; // base64 or url
+  image: string;
   isActive: boolean;
+  createdAt: string;
 }
-
-const STORAGE_KEY = 'gulfgate_categories';
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: '1', name: 'Shawarma', description: 'Authentic Middle Eastern wraps with tender marinated meat, garlic sauce and fresh vegetables.', image: '', isActive: true },
-  { id: '2', name: 'Broasted Chicken', description: 'Crispy pressure-fried chicken, golden outside and juicy inside, served with garlic sauce.', image: '', isActive: true },
-  { id: '3', name: 'Burgers', description: 'Juicy beef and chicken burgers loaded with fresh toppings and our special house sauces.', image: '', isActive: true },
-  { id: '4', name: 'Fresh Juices', description: 'Pure blended fresh fruits with no added sugar, served chilled for a refreshing experience.', image: '', isActive: true },
-  { id: '5', name: 'Appetizers', description: 'Delicious starters including hummus, falafel, and loaded fries to kickstart your meal.', image: '', isActive: true },
-  { id: '6', name: 'Desserts', description: 'Traditional Middle Eastern sweets and modern desserts to end your meal on a sweet note.', image: '', isActive: true },
-];
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
-  // Form state
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formImage, setFormImage] = useState('');
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setCategories(JSON.parse(stored));
-    } else {
-      setCategories(DEFAULT_CATEGORIES);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CATEGORIES));
+  // Delete confirm state
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/categories`);
+      const data = await res.json();
+      if (data.success) setCategories(data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const persist = (updated: Category[]) => {
-    setCategories(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  // ── Image ──────────────────────────────────────────────────────────────────
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setFormImage(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
+  // ── Open modals ───────────────────────────────────────────────────────────
   const openCreate = () => {
     setEditingCat(null);
-    setFormName('');
-    setFormDesc('');
-    setFormImage('');
-    setFormError('');
+    setFormName(''); setFormDesc(''); setFormImage(''); setFormError('');
     setShowModal(true);
   };
 
@@ -69,50 +81,71 @@ export default function CategoriesPage() {
     setShowModal(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setFormImage(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleSave = () => {
+  // ── Save (create or edit) ─────────────────────────────────────────────────
+  const handleSave = async () => {
     setFormError('');
-    if (!formName.trim()) {
-      setFormError('Category name is required.');
-      return;
+    if (!formName.trim()) { setFormError('Category name is required.'); return; }
+    setSaving(true);
+    try {
+      const body = { name: formName.trim(), description: formDesc.trim(), image: formImage };
+      let res, data;
+      if (editingCat) {
+        res = await fetch(`${API}/api/categories/${editingCat._id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        data = await res.json();
+        if (!res.ok) { setFormError(data.message || 'Update failed'); return; }
+        setCategories((prev) => prev.map((c) => c._id === editingCat._id ? data.data : c));
+        showToast(`"${data.data.name}" updated successfully`);
+      } else {
+        res = await fetch(`${API}/api/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        data = await res.json();
+        if (!res.ok) { setFormError(data.message || 'Create failed'); return; }
+        setCategories((prev) => [...prev, data.data]);
+        showToast(`"${data.data.name}" created successfully`);
+      }
+      setShowModal(false);
+    } catch {
+      setFormError('Network error. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    if (editingCat) {
-      // Update
-      persist(categories.map((c) =>
-        c.id === editingCat.id
-          ? { ...c, name: formName.trim(), description: formDesc.trim(), image: formImage }
-          : c
-      ));
-    } else {
-      // Create
-      const dup = categories.find((c) => c.name.toLowerCase() === formName.trim().toLowerCase());
-      if (dup) { setFormError('Category already exists.'); return; }
-      const newCat: Category = {
-        id: Date.now().toString(),
-        name: formName.trim(),
-        description: formDesc.trim(),
-        image: formImage,
-        isActive: true,
-      };
-      persist([...categories, newCat]);
-    }
-    setShowModal(false);
   };
 
-  const handleToggleActive = (id: string) => {
-    persist(categories.map((c) => c.id === id ? { ...c, isActive: !c.isActive } : c));
+  // ── Toggle active ─────────────────────────────────────────────────────────
+  const handleToggle = async (cat: Category) => {
+    try {
+      const res = await fetch(`${API}/api/categories/${cat._id}/toggle`, { method: 'PATCH' });
+      const data = await res.json();
+      if (data.success) {
+        setCategories((prev) => prev.map((c) => c._id === cat._id ? data.data : c));
+        showToast(`"${cat.name}" is now ${data.data.isActive ? 'active' : 'hidden'}`);
+      }
+    } catch { showToast('Failed to update status', 'error'); }
   };
 
-  const handleDelete = (id: string) => {
-    persist(categories.filter((c) => c.id !== id));
-    setDeleteId(null);
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API}/api/categories/${deleteTarget._id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCategories((prev) => prev.filter((c) => c._id !== deleteTarget._id));
+        showToast(`"${deleteTarget.name}" deleted`);
+        setDeleteTarget(null);
+      } else {
+        showToast(data.message || 'Delete failed', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+    finally { setDeleting(false); }
   };
 
   const filtered = categories.filter((c) =>
@@ -122,6 +155,26 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl border text-sm font-medium transition-all ${
+          toast.type === 'success'
+            ? 'bg-white border-green-200 text-green-700'
+            : 'bg-white border-red-200 text-red-700'
+        }`}>
+          {toast.type === 'success' ? (
+            <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          {toast.msg}
+        </div>
+      )}
 
       {/* ── Page Header ── */}
       <div className="flex items-start justify-between">
@@ -167,7 +220,14 @@ export default function CategoriesPage() {
       </div>
 
       {/* ── Cards Grid ── */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <svg className="w-8 h-8 text-gray-300 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-gray-200 text-center">
           <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
             <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,20 +240,17 @@ export default function CategoriesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((cat) => (
-            <div key={cat.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
+            <div key={cat._id} className={`bg-white rounded-xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all ${cat.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
 
               {/* Image */}
               <div className="relative h-40 bg-gray-100">
                 {cat.image ? (
                   <Image src={cat.image} alt={cat.name} fill className="object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-5xl select-none">
-                    🍽️
-                  </div>
+                  <div className="w-full h-full flex items-center justify-center text-5xl select-none">🍽️</div>
                 )}
-                {/* Active Badge */}
                 <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow ${cat.isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cat.isActive ? 'bg-white' : 'bg-gray-200'}`} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/70" />
                   {cat.isActive ? 'ACTIVE' : 'HIDDEN'}
                 </span>
               </div>
@@ -219,12 +276,12 @@ export default function CategoriesPage() {
                   Edit
                 </button>
 
-                <div className="flex items-center gap-3">
-                  {/* Toggle hide/show */}
+                <div className="flex items-center gap-2">
+                  {/* Toggle active */}
                   <button
-                    onClick={() => handleToggleActive(cat.id)}
+                    onClick={() => handleToggle(cat)}
                     title={cat.isActive ? 'Hide category' : 'Show category'}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     {cat.isActive ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,31 +296,15 @@ export default function CategoriesPage() {
                   </button>
 
                   {/* Delete */}
-                  {deleteId === cat.id ? (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleDelete(cat.id)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(null)}
-                        className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteId(cat.id)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setDeleteTarget(cat)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Delete category"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -274,12 +315,12 @@ export default function CategoriesPage() {
       {/* ── Create / Edit Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
 
-            {/* Modal Header */}
+            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-base font-bold text-gray-900">
-                {editingCat ? 'Edit Category' : 'New Category'}
+                {editingCat ? `Edit "${editingCat.name}"` : 'New Category'}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -291,9 +332,8 @@ export default function CategoriesPage() {
               </button>
             </div>
 
-            {/* Modal Body */}
+            {/* Body */}
             <div className="px-6 py-5 space-y-4">
-
               {formError && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,7 +343,7 @@ export default function CategoriesPage() {
                 </div>
               )}
 
-              {/* Image Upload */}
+              {/* Image */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Category Image</label>
                 <div
@@ -311,7 +351,12 @@ export default function CategoriesPage() {
                   className="relative w-full h-36 rounded-xl border-2 border-dashed border-gray-200 hover:border-green-400 overflow-hidden cursor-pointer transition-colors bg-gray-50 hover:bg-green-50 flex items-center justify-center"
                 >
                   {formImage ? (
-                    <Image src={formImage} alt="preview" fill className="object-cover rounded-xl" />
+                    <>
+                      <Image src={formImage} alt="preview" fill className="object-cover rounded-xl" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-xl">
+                        <p className="text-white text-xs font-semibold">Click to change</p>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-gray-400">
                       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,6 +378,7 @@ export default function CategoriesPage() {
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                   placeholder="e.g. Grills, Pasta Corner..."
                   className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent placeholder-gray-400"
                 />
@@ -351,7 +397,7 @@ export default function CategoriesPage() {
               </div>
             </div>
 
-            {/* Modal Footer */}
+            {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
@@ -361,14 +407,68 @@ export default function CategoriesPage() {
               </button>
               <button
                 onClick={handleSave}
-                className="px-5 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors"
               >
+                {saving && (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
                 {editingCat ? 'Save Changes' : 'Create Category'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Delete Confirm Modal ── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center space-y-4">
+            {/* Icon */}
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Delete Category</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Are you sure you want to delete{' '}
+                <span className="font-semibold text-gray-800">&quot;{deleteTarget.name}&quot;</span>?
+                This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : null}
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,53 +1,37 @@
-/**
- * Authentication Middleware (Example)
- * TODO: Implement JWT verification logic
- */
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'ggc_secret_key_change_in_prod';
+
+// Protect route — verifies JWT
 const protect = async (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.headers.authorization?.split(' ')[1]; // Bearer TOKEN
+    const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized, no token provided'
-      });
+      return res.status(401).json({ success: false, message: 'Not authorized, no token' });
     }
 
-    // TODO: Verify JWT token
-    // const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    // req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id);
 
+    if (!user || !user.isActive) {
+      return res.status(401).json({ success: false, message: 'User not found or deactivated' });
+    }
+
+    req.user = { id: user._id, role: user.role, name: user.name, phone: user.phone };
     next();
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Not authorized, token invalid'
-    });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Not authorized, token invalid' });
   }
 };
 
-/**
- * Role-based authorization middleware
- * @param  {...string} roles - Allowed roles
- */
+// Role-based authorization
 const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized'
-      });
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this action' });
     }
-
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to access this route'
-      });
-    }
-
     next();
   };
 };

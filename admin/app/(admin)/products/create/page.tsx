@@ -6,12 +6,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 interface Category {
-  id: string;
+  _id: string;
   name: string;
-  icon: string;
 }
 
-const STORAGE_KEY = 'gulfgate_categories';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function CreateProductPage() {
   const router = useRouter();
@@ -38,12 +37,12 @@ export default function CreateProductPage() {
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Load categories from localStorage
+  // Load categories from API
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setCategories(JSON.parse(stored));
-    }
+    fetch(`${API}/api/categories`)
+      .then((r) => r.json())
+      .then((data) => { if (data.success) setCategories(data.data); })
+      .catch(console.error);
   }, []);
 
   const handleChange = (
@@ -332,8 +331,8 @@ export default function CreateProductPage() {
                     <option value="" disabled>No categories — add in Categories page</option>
                   ) : (
                     categories.map((cat) => (
-                      <option key={cat.id} value={cat.name.toLowerCase().replace(/\s+/g, '_')}>
-                        {cat.icon} {cat.name}
+                      <option key={cat._id} value={cat.name.toLowerCase().replace(/\s+/g, '_')}>
+                        {cat.name}
                       </option>
                     ))
                   )}

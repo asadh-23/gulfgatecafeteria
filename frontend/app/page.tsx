@@ -20,19 +20,17 @@ export default function Home() {
     dispatch(fetchProducts());
   }, [dispatch]);
 
-  // Build categories dynamically from products
+  // Build categories by combining static categories with any dynamic ones from products
+  const productCategoryIds = Array.from(new Set(products.map((p) => p.category)));
   const dynamicCategories = [
-    { id: 'all', name: 'All Items', icon: '🍽️' },
-    ...Array.from(new Set(products.map((p) => p.category))).map((cat) => {
-      const staticCat = staticCategories.find(
-        (c) => c.id === cat || c.name.toLowerCase() === cat.toLowerCase()
-      );
-      return {
+    ...staticCategories,
+    ...productCategoryIds
+      .filter((cat) => !staticCategories.some((sc) => sc.id === cat || sc.name.toLowerCase() === cat.toLowerCase()))
+      .map((cat) => ({
         id: cat,
-        name: staticCat?.name || cat.charAt(0).toUpperCase() + cat.slice(1),
-        icon: staticCat?.icon || '🍽️',
-      };
-    }),
+        name: cat.charAt(0).toUpperCase() + cat.slice(1),
+        icon: '🍽️',
+      })),
   ];
 
   const filteredItems = [...(activeCategory === 'all'
