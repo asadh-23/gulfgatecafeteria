@@ -90,10 +90,12 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-      }
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+        }
+      } catch { /* storage blocked */ }
     },
     clearAuthError(state) {
       state.error = null;

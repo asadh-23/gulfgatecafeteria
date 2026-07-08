@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/src/components/Navbar";
 import Footer from "@/src/components/Footer";
 import Providers from "@/src/components/Providers";
+import StorageErrorSuppressor from "@/src/components/StorageErrorSuppressor";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
         <Providers>
+          <StorageErrorSuppressor />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

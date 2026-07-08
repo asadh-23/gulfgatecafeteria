@@ -53,7 +53,11 @@ export default function NotificationPanel() {
 
   useEffect(() => {
     setMounted(true);
-    dispatch(hydrateOrderPhone());
+    try {
+      dispatch(hydrateOrderPhone());
+    } catch {
+      // localStorage blocked by browser/extension — silently ignore
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
