@@ -23,26 +23,21 @@ interface NotificationItem {
   createdAt: string;
 }
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr);
+  const diff = Date.now() - d.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return `${mins} min ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return `${hrs} hr ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-const TYPE_ICON: Record<NotificationType, string> = {
-  order_received: '✅',
-  order_ready: '🎉',
-  general: '🔔',
-};
-
-const TYPE_LABEL: Record<NotificationType, string> = {
-  order_received: 'Order Received',
-  order_ready: 'Ready for Collection!',
-  general: 'Notification',
+const TYPE_CONFIG: Record<NotificationType, { label: string; icon: string; color: string; bg: string }> = {
+  order_received: { label: 'Order Received',        icon: '🛍️', color: 'text-blue-600',  bg: 'bg-blue-50'  },
+  order_ready:    { label: 'Ready for Collection',  icon: '🎉', color: 'text-green-600', bg: 'bg-green-50' },
+  general:        { label: 'Notification',           icon: '🔔', color: 'text-gray-600',  bg: 'bg-gray-100' },
 };
 
 export default function NotificationPanel() {
@@ -53,188 +48,194 @@ export default function NotificationPanel() {
 
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [tab, setTab] = useState<'unread' | 'all'>('unread');
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Only render on client to avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
     dispatch(hydrateOrderPhone());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // When panel opens → refresh notifications
+  useEffect(() => {
+    if (!phone) return;
+    dispatch(fetchNotifications(phone));
+    const interval = setInterval(() => dispatch(fetchNotifications(phone)), 10000);
+    return () => clearInterval(interval);
+  }, [phone, dispatch]);
+
   const handleOpen = () => {
-    setOpen((prev) => {
-      if (!prev && phone) {
-        dispatch(fetchNotifications(phone));
-      }
+    setOpen(prev => {
+      if (!prev && phone) dispatch(fetchNotifications(phone));
       return !prev;
     });
   };
 
-  // Auto-poll every 10s in background
-  useEffect(() => {
-    if (!phone) return;
-    dispatch(fetchNotifications(phone));
-    const interval = setInterval(() => {
-      dispatch(fetchNotifications(phone));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [phone, dispatch]);
-
-  const handleMarkRead = () => {
-    if (phone) {
-      dispatch(markNotificationsRead(phone));
-    }
+  const handleMarkAllRead = () => {
+    if (phone) dispatch(markNotificationsRead(phone));
   };
 
-  // Browser push notification when a new "ready" notification arrives
-  useEffect(() => {
-    const ready = notifications.find(
-      (n) => n.type === 'order_ready' && !n.isRead
-    );
-    if (!ready) return;
-    if ('Notification' in window && window.Notification.permission === 'granted') {
-      new window.Notification('🎉 Your food is ready!', {
-        body: ready.message,
-        icon: '/gulfgatecafeterialogo.png',
-      });
-    }
-  }, [notifications]);
-
-  // Request browser notification permission once
   useEffect(() => {
     if ('Notification' in window && window.Notification.permission === 'default') {
       window.Notification.requestPermission();
     }
   }, []);
 
+  useEffect(() => {
+    const ready = (notifications as NotificationItem[]).find(n => n.type === 'order_ready' && !n.isRead);
+    if (!ready) return;
+    if ('Notification' in window && window.Notification.permission === 'granted') {
+      new window.Notification('🎉 Your food is ready!', { body: ready.message, icon: '/gulfgatecafeterialogo.png' });
+    }
+  }, [notifications]);
+
   if (!mounted || !phone) return null;
+
+  const items = notifications as NotificationItem[];
+  const displayed = tab === 'unread' ? items.filter(n => !n.isRead) : items;
 
   return (
     <div ref={panelRef} className="relative">
-      {/* Bell Button */}
-      <button
-        onClick={handleOpen}
+      {/* Bell */}
+      <button onClick={handleOpen}
         className="relative p-2 rounded-lg text-[#FFC107] hover:bg-[#FFC107]/10 transition-all duration-300"
-        aria-label="Notifications"
-      >
-        <svg
-          className={`w-6 h-6 transition-transform duration-300 ${unreadCount > 0 ? 'animate-wiggle' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        aria-label="Notifications">
+        <svg className={`w-6 h-6 ${unreadCount > 0 ? 'animate-wiggle' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-
-        {/* Red dot indicator */}
         {unreadCount > 0 && (
           <>
-            {/* Pulsing outer ring */}
             <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-red-500/40 animate-ping" />
-            {/* Solid dot */}
-            <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-[#121212] shadow-md" />
+            <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-red-500 border-2 border-[#121212]" />
           </>
         )}
       </button>
 
-      {/* Dropdown Panel */}
+      {/* Panel */}
       {open && (
-        <div className="absolute right-0 top-12 w-80 sm:w-96 bg-[#1A1A1A] border border-[#FFC107]/20 rounded-2xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-80 sm:w-96 bg-[#1A1A1A] rounded-2xl shadow-2xl z-50 overflow-hidden border border-[#FFC107]/20 animate-fadeIn">
+
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#FFC107]/10">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <div className="flex items-center gap-2">
-              <h3 className="text-white font-bold text-sm">Notifications</h3>
+              <div className="w-8 h-8 bg-[#FFC107]/15 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-[#FFC107]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-sm">Notification</h3>
+                <p className="text-xs text-gray-400">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                  {unreadCount} new
+                <button onClick={handleMarkAllRead} title="Mark all as read"
+                  className="w-7 h-7 bg-[#FFC107]/15 hover:bg-[#FFC107]/25 rounded-full flex items-center justify-center transition-colors">
+                  <svg className="w-4 h-4 text-[#FFC107]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              )}
+              <button onClick={() => setOpen(false)}
+                className="w-7 h-7 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-2 px-4 pb-2 border-b border-[#FFC107]/10">
+            <button onClick={() => setTab('unread')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                tab === 'unread'
+                  ? 'bg-[#FFC107] text-[#121212]'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+              Unread
+              {unreadCount > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  tab === 'unread' ? 'bg-[#121212] text-[#FFC107]' : 'bg-white/10 text-gray-300'}`}>
+                  {unreadCount}
                 </span>
               )}
-            </div>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkRead}
-                className="text-xs text-[#FFC107] hover:text-[#FFD54F] transition-colors font-medium"
-              >
-                Mark all read
-              </button>
-            )}
+            </button>
+            <button onClick={() => setTab('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                tab === 'all'
+                  ? 'bg-white/10 text-white'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+              All
+            </button>
           </div>
 
           {/* List */}
-          <div className="max-h-[400px] overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#FFC107]/10 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-[#FFC107]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                <p className="text-gray-400 text-sm">No notifications yet</p>
+          <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
+            {displayed.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <p className="text-sm text-gray-500">{tab === 'unread' ? 'No unread notifications' : 'No notifications yet'}</p>
               </div>
             ) : (
-              (notifications as NotificationItem[]).map((n) => (
-                <div
-                  key={n._id}
-                  className={`flex items-start gap-3 px-4 py-3.5 border-b border-[#FFC107]/5 last:border-0 transition-colors ${
-                    !n.isRead ? 'bg-[#FFC107]/5' : 'hover:bg-white/5'
-                  }`}
-                >
-                  {/* Icon */}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base ${
-                    n.type === 'order_ready'
-                      ? 'bg-green-500/20'
-                      : n.type === 'order_received'
-                      ? 'bg-blue-500/20'
-                      : 'bg-[#FFC107]/10'
-                  }`}>
-                    {TYPE_ICON[n.type]}
+              displayed.map((n) => {
+                const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
+                return (
+                  <div key={n._id} className={`px-4 py-3 transition-colors ${!n.isRead ? 'bg-[#FFC107]/5' : 'hover:bg-white/5'}`}>
+                    <div className="flex items-start gap-3">
+                      {/* Icon */}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-base ${
+                        n.type === 'order_ready' ? 'bg-green-500/20' : n.type === 'order_received' ? 'bg-blue-500/20' : 'bg-[#FFC107]/10'
+                      }`}>
+                        {cfg.icon}
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-xs font-bold ${
+                            n.type === 'order_ready' ? 'text-green-400' : 'text-[#FFC107]'}`}>
+                            {cfg.label}
+                          </p>
+                          <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">{formatTime(n.createdAt)}</span>
+                        </div>
+                        <p className="text-xs font-semibold text-gray-300 mt-0.5">Order #{n.orderNumber}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.message}</p>
+                        {!n.isRead && (
+                          <button onClick={handleMarkAllRead}
+                            className="mt-1.5 px-2.5 py-1 bg-[#FFC107]/10 border border-[#FFC107]/20 hover:border-[#FFC107]/40 text-[#FFC107] text-[10px] font-semibold rounded-lg transition-colors">
+                            Mark as read
+                          </button>
+                        )}
+                      </div>
+                      {/* Unread dot */}
+                      {!n.isRead && <span className="w-2 h-2 bg-[#FFC107] rounded-full flex-shrink-0 mt-1" />}
+                    </div>
                   </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${
-                      n.type === 'order_ready' ? 'text-green-400' : 'text-[#FFC107]'
-                    }`}>
-                      {TYPE_LABEL[n.type]} · #{n.orderNumber}
-                    </p>
-                    <p className="text-sm text-gray-200 leading-relaxed">{n.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">{timeAgo(n.createdAt)}</p>
-                  </div>
-
-                  {/* Unread dot */}
-                  {!n.isRead && (
-                    <span className="w-2 h-2 bg-[#FFC107] rounded-full flex-shrink-0 mt-1.5" />
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-[#FFC107]/10 text-center">
-              <a
-                href="/my-orders"
-                onClick={() => setOpen(false)}
-                className="text-xs text-[#FFC107] hover:text-[#FFD54F] font-semibold transition-colors"
-              >
-                View all orders →
-              </a>
-            </div>
-          )}
+          <div className="px-4 py-3 border-t border-[#FFC107]/10 bg-[#111111]">
+            <a href="/my-orders" onClick={() => setOpen(false)}
+              className="flex items-center justify-center gap-1 text-xs text-[#FFC107] hover:text-[#FFD54F] font-bold transition-colors">
+              View All Orders
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
         </div>
       )}
     </div>

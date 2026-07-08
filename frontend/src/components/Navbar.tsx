@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
-import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal } from '@/src/store/cartSlice';
+import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal, clearCart } from '@/src/store/cartSlice';
 import { selectSavedCount, hydrateSaved } from '@/src/store/savedSlice';
 import { selectUser, selectIsLoggedIn, logout } from '@/src/store/authSlice';
 import CartDrawer from './CartDrawer';
@@ -27,7 +27,6 @@ export default function Navbar() {
   const isLoggedIn = useAppSelector(selectIsLoggedIn);
   const user = useAppSelector(selectUser);
   const isOrderModalOpen = useAppSelector(selectOrderModalOpen);
-  const savedCount = useAppSelector(selectSavedCount);
 
   // Mount + hydrate on client only
   useEffect(() => {
@@ -37,7 +36,6 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Menu' },
-    { href: '/saved', label: 'Saved' },
     { href: '/my-orders', label: 'My Orders' },
     { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact' },
@@ -104,22 +102,6 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             {/* Notification Bell — self-contained component */}
             <NotificationPanel />
-
-            {/* Saved / Heart Button */}
-            <Link
-              href="/saved"
-              className="relative p-2 rounded-lg text-[#FFC107] hover:bg-[#FFC107]/10 transition-all duration-300"
-              aria-label="Saved items"
-            >
-              <svg className="w-6 h-6" fill={mounted && savedCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              {mounted && savedCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#FFC107] text-[#121212] text-xs font-bold rounded-full flex items-center justify-center">
-                  {savedCount > 9 ? '9+' : savedCount}
-                </span>
-              )}
-            </Link>
 
             {/* Cart Button */}
             <button
@@ -216,21 +198,15 @@ export default function Navbar() {
                         </svg>
                         My Orders
                       </Link>
-                      <Link
-                        href="/saved"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-                      >
-                        <svg className="w-4 h-4 text-[#FFC107]/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                        Saved Items
-                      </Link>
                     </div>
                     {/* Logout */}
                     <div className="border-t border-[#FFC107]/10 py-2">
                       <button
-                        onClick={() => { dispatch(logout()); setShowUserMenu(false); }}
+                        onClick={() => { 
+                          dispatch(logout()); 
+                          dispatch(clearCart());
+                          setShowUserMenu(false); 
+                        }}
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
