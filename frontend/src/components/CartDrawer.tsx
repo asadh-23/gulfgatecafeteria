@@ -27,10 +27,10 @@ export default function CartDrawer() {
   if (!isOpen) return null;
 
   const handlePlaceOrder = () => {
-    dispatch(closeCart());
     if (!isLoggedIn) {
       setShowAuthModal(true);
     } else {
+      dispatch(closeCart());
       dispatch(openOrderModal());
     }
   };
@@ -175,12 +175,13 @@ export default function CartDrawer() {
         )}
       </div>
 
-      {/* Auth Modal — shown when user is not logged in */}
+      {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSuccess={() => {
           setShowAuthModal(false);
+          dispatch(closeCart());
           dispatch(openOrderModal());
         }}
       />

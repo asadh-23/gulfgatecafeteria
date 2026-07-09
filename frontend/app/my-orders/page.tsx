@@ -14,32 +14,32 @@ import {
 } from '@/src/store/orderSlice';
 import { selectUser, selectIsLoggedIn } from '@/src/store/authSlice';
 
-type OrderStatus = 'pending' | 'confirmed' | 'ready_for_collection' | 'collected' | 'delivered';
+type OrderStatus = 'pending' | 'confirmed' | 'ready_for_collection' | 'collected' | 'completed';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   ready_for_collection: '🎉 Ready for Collection!',
   collected: 'Collected',
-  delivered: 'Delivered',
+  completed: 'Completed',
 };
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   pending: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
   confirmed: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
   ready_for_collection: 'bg-green-500/20 text-green-400 border border-green-500/30 animate-pulse',
-  collected: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
-  delivered: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
+  collected: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
+  completed: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
 };
 
-const STATUS_STEPS: OrderStatus[] = ['pending', 'confirmed', 'ready_for_collection', 'collected', 'delivered'];
+const STATUS_STEPS: OrderStatus[] = ['pending', 'confirmed', 'ready_for_collection', 'collected', 'completed'];
 
 const STATUS_STEP_LABELS: Record<OrderStatus, string> = {
   pending: 'Order Placed',
   confirmed: 'Confirmed',
   ready_for_collection: 'Ready',
   collected: 'Collected',
-  delivered: 'Done',
+  completed: 'Done',
 };
 
 export default function MyOrdersPage() {
@@ -273,13 +273,13 @@ export default function MyOrdersPage() {
                       )}
 
                       {/* Pay note */}
-                      {order.status !== 'delivered' && order.status !== 'collected' && (
+                      {order.status !== 'completed' && order.status !== 'collected' && (
                         <div className="px-5 pb-4">
                           <p className="text-xs text-gray-500 flex items-center gap-1.5">
                             <svg className="w-3.5 h-3.5 text-[#FFC107]/50" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                             </svg>
-                            Pay AED {order.totalAmount.toFixed(2)} in cash when you collect
+                            Pay with cash or card when you collect (AED {order.totalAmount.toFixed(2)})
                           </p>
                         </div>
                       )}

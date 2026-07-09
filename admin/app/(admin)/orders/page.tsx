@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-type OrderStatus = 'pending' | 'confirmed' | 'ready_for_collection' | 'collected' | 'delivered';
+type OrderStatus = 'pending' | 'confirmed' | 'ready_for_collection' | 'collected' | 'completed';
 
 interface OrderItem {
   productId: string;
@@ -26,45 +27,28 @@ interface Order {
   createdAt: string;
 }
 
-const STATUS_FLOW: Record<OrderStatus, OrderStatus | null> = {
-  pending: 'confirmed',
-  confirmed: 'ready_for_collection',
-  ready_for_collection: 'collected',
-  collected: 'delivered',
-  delivered: null,
-};
-
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   ready_for_collection: 'Ready for Collection',
-  collected: 'Collected',
-  delivered: 'Delivered',
+  collected: 'Completed',
+  completed: 'Completed',
 };
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   pending: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
   confirmed: 'bg-blue-50 text-blue-700 border border-blue-200',
   ready_for_collection: 'bg-green-50 text-green-700 border border-green-200',
-  collected: 'bg-purple-50 text-purple-700 border border-purple-200',
-  delivered: 'bg-gray-100 text-gray-500 border border-gray-200',
+  collected: 'bg-gray-100 text-gray-500 border border-gray-200',
+  completed: 'bg-gray-100 text-gray-500 border border-gray-200',
 };
 
-const STATUS_TABS: { label: string; value: 'all' | OrderStatus }[] = [
-  { label: 'ALL', value: 'all' },
-  { label: 'PENDING', value: 'pending' },
-  { label: 'CONFIRMED', value: 'confirmed' },
-  { label: 'READY', value: 'ready_for_collection' },
-  { label: 'COLLECTED', value: 'collected' },
-  { label: 'DELIVERED', value: 'delivered' },
-];
-
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | OrderStatus>('all');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'active' | 'completed'>('active');
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -80,55 +64,39 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-    // Auto-refresh every 15 seconds
     const interval = setInterval(fetchOrders, 15000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    setUpdatingId(orderId);
-    try {
-      const res = await fetch(`${API}/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOrders((prev) =>
-          prev.map((o) => (o._id === orderId ? { ...o, status: data.data.status } : o))
-        );
-      }
-    } catch (err) {
-      console.error('Failed to update status:', err);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const filtered = orders.filter((o) => {
-    const matchTab = activeTab === 'all' || o.status === activeTab;
+  const activeOrders = orders.filter((o) => 
+    o.status !== 'completed' && o.status !== 'collected'
+  );
+  const completedOrders = orders.filter((o) => 
+    o.status === 'completed' || o.status === 'collected'
+  );
+  
+  const displayOrders = viewMode === 'active' ? activeOrders : completedOrders;
+  
+  const filtered = displayOrders.filter((o) => {
     const q = search.toLowerCase();
-    const matchSearch =
+    return (
       o.orderNumber.toLowerCase().includes(q) ||
       o.customerName.toLowerCase().includes(q) ||
-      o.customerPhone.toLowerCase().includes(q);
-    return matchTab && matchSearch;
+      o.customerPhone.toLowerCase().includes(q)
+    );
   });
 
-  const activeCount = orders.filter((o) => o.status !== 'delivered').length;
   const pendingCount = orders.filter((o) => o.status === 'pending').length;
-  const deliveredOrders = orders.filter((o) => o.status === 'delivered');
-  const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
   return (
     <div className="space-y-6">
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incoming Orders</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Real-time order management · auto-refreshes every 15 seconds
+            Real-time order tracking · auto-refreshes every 15 seconds
           </p>
         </div>
         <button
@@ -142,7 +110,7 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* ── Stat Cards ── */}
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-orange-400 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -151,7 +119,7 @@ export default function OrdersPage() {
             </svg>
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{activeCount}</p>
+            <p className="text-2xl font-bold text-gray-900">{activeOrders.length}</p>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active</p>
           </div>
         </div>
@@ -176,24 +144,24 @@ export default function OrdersPage() {
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">AED {totalRevenue.toFixed(0)}</p>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Collected Revenue</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Revenue</p>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
           <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Orders</p>
+            <p className="text-2xl font-bold text-gray-900">{completedOrders.length}</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Completed</p>
           </div>
         </div>
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {/* Search */}
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -209,28 +177,29 @@ export default function OrdersPage() {
           />
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100 overflow-x-auto">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                activeTab === tab.value
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-              {tab.value !== 'all' && (
-                <span className="ml-1 text-gray-400">
-                  ({orders.filter((o) => o.status === tab.value).length})
-                </span>
-              )}
-            </button>
-          ))}
+        {/* View Mode Tabs */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+          <button
+            onClick={() => setViewMode('active')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              viewMode === 'active'
+                ? 'bg-[#FFC107] text-[#121212]'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+          >
+            Active Orders ({activeOrders.length})
+          </button>
+          <button
+            onClick={() => setViewMode('completed')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              viewMode === 'completed'
+                ? 'bg-[#FFC107] text-[#121212]'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+          >
+            Completed Orders ({completedOrders.length})
+          </button>
         </div>
-
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -246,8 +215,13 @@ export default function OrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-gray-500">No orders found</p>
-            <p className="text-xs text-gray-400 mt-1">Orders will appear here once customers place them</p>
+            <p className="text-sm font-semibold text-gray-500">No {viewMode} orders found</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {viewMode === 'active' 
+                ? 'Orders will appear here once customers place them'
+                : 'Completed orders will appear here'
+              }
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -259,83 +233,67 @@ export default function OrdersPage() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Items</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Total</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((order) => {
-                  const nextStatus = STATUS_FLOW[order.status];
-                  const isUpdating = updatingId === order._id;
-                  return (
-                    <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                      {/* Order */}
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900">#{order.orderNumber}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString()} · {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </td>
+                {filtered.map((order) => (
+                  <tr 
+                    key={order._id} 
+                    onClick={() => router.push(`/orders/${order._id}`)}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    {/* Order */}
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-gray-900">#{order.orderNumber}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </td>
 
-                      {/* Customer */}
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-gray-900">{order.customerName}</p>
-                        <p className="text-xs text-gray-400">{order.customerPhone}</p>
-                        {order.notes && (
-                          <p className="text-xs text-amber-600 mt-0.5 italic">📝 {order.notes}</p>
+                    {/* Customer */}
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-gray-900">{order.customerName}</p>
+                      <p className="text-xs text-gray-400">{order.customerPhone}</p>
+                      {order.notes && (
+                        <p className="text-xs text-amber-600 mt-0.5">📝 Has notes</p>
+                      )}
+                    </td>
+
+                    {/* Items */}
+                    <td className="px-5 py-4">
+                      <div className="space-y-0.5">
+                        {order.items.slice(0, 2).map((item, i) => (
+                          <p key={i} className="text-xs text-gray-600">
+                            {item.quantity}x {item.name}
+                          </p>
+                        ))}
+                        {order.items.length > 2 && (
+                          <p className="text-xs text-gray-400 italic">
+                            +{order.items.length - 2} more
+                          </p>
                         )}
-                      </td>
+                      </div>
+                    </td>
 
-                      {/* Items */}
-                      <td className="px-5 py-4">
-                        <div className="space-y-0.5">
-                          {order.items.map((item, i) => (
-                            <p key={i} className="text-xs text-gray-600">
-                              {item.quantity}x {item.name}
-                            </p>
-                          ))}
-                        </div>
-                      </td>
+                    {/* Total */}
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-gray-900">AED {order.totalAmount.toFixed(2)}</p>
+                    </td>
 
-                      {/* Total */}
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-gray-900">AED {order.totalAmount.toFixed(2)}</p>
-                        <p className="text-xs text-gray-400">Cash on collection</p>
-                      </td>
+                    {/* Status */}
+                    <td className="px-5 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[order.status]}`}>
+                        {STATUS_LABELS[order.status]}
+                      </span>
+                    </td>
 
-                      {/* Status */}
-                      <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[order.status]}`}>
-                          {STATUS_LABELS[order.status]}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-5 py-4">
-                        {nextStatus ? (
-                          <button
-                            onClick={() => updateStatus(order._id, nextStatus)}
-                            disabled={isUpdating}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors"
-                          >
-                            {isUpdating ? (
-                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
-                            ) : (
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            )}
-                            → {STATUS_LABELS[nextStatus]}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Completed</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    {/* Date */}
+                    <td className="px-5 py-4">
+                      <p className="text-xs text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</p>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

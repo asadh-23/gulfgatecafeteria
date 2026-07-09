@@ -117,14 +117,33 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
+// ─── Get Single Order by ID (Admin) ──────────────────────────────────────────
+// GET /api/orders/:id
+exports.getOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    res.json({ success: true, data: order });
+  } catch (err) {
+    console.error('getOrderById error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── Update Order Status (Admin) ─────────────────────────────────────────────
 // PATCH /api/orders/:id/status
+// PUT /api/orders/:id/status
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['pending', 'confirmed', 'ready_for_collection', 'collected', 'delivered'];
+    const validStatuses = ['pending', 'confirmed', 'ready_for_collection', 'collected', 'completed'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
@@ -145,25 +164,34 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    // When collected → record revenue → move to delivered
-    if (status === 'collected' && !order.revenueRecorded) {
-      await Revenue.create({
-        orderId: order._id,
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        customerPhone: order.customerPhone,
-        amount: order.totalAmount,
-        itemsSummary: order.items.map((i) => ({
-          name: i.name,
-          quantity: i.quantity,
-          price: i.price,
-        })),
-        totalItems: order.items.reduce((sum, i) => sum + i.quantity, 0),
-        collectedAt: new Date(),
-      });
-
-      order.revenueRecorded = true;
-      order.status = 'delivered'; // auto-advance to delivered
+    // When collected → record revenue and auto-complete
+    if (status === 'collected') {
+      // Record revenue if not already done
+      if (!order.revenueRecorded) {
+        try {
+          await Revenue.create({
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            amount: order.totalAmount,
+            itemsSummary: order.items.map((i) => ({
+              name: i.name,
+              quantity: i.quantity,
+              price: i.price,
+            })),
+            totalItems: order.items.reduce((sum, i) => sum + i.quantity, 0),
+            collectedAt: new Date(),
+          });
+          order.revenueRecorded = true;
+        } catch (revenueErr) {
+          console.error('Revenue recording failed (non-critical):', revenueErr);
+          // Continue anyway - don't block order completion
+        }
+      }
+      
+      // Automatically set to completed
+      order.status = 'completed';
     }
 
     await order.save();

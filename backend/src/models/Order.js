@@ -45,10 +45,10 @@ const orderSchema = new mongoose.Schema(
     },
 
     // Order status flow:
-    // pending → confirmed → ready_for_collection → collected → delivered
+    // pending → confirmed → ready_for_collection → collected → completed
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'ready_for_collection', 'collected', 'delivered'],
+      enum: ['pending', 'confirmed', 'ready_for_collection', 'collected', 'completed'],
       default: 'pending',
     },
 

@@ -6,6 +6,7 @@ const {
   getNotifications,
   markNotificationsRead,
   getAllOrders,
+  getOrderById,
   updateOrderStatus,
 } = require('../controllers/orderController');
 
@@ -17,6 +18,8 @@ router.post('/notifications/read', markNotificationsRead); // Mark all notificat
 
 // Admin routes
 router.get('/', getAllOrders);                          // Get all orders (with optional ?status= filter)
+router.get('/:id', getOrderById);                       // Get single order by ID
 router.patch('/:id/status', updateOrderStatus);        // Update order status
+router.put('/:id/status', updateOrderStatus);          // Update order status (alternative method)
 
 module.exports = router;

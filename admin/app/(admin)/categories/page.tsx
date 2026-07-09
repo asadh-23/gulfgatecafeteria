@@ -88,7 +88,8 @@ export default function CategoriesPage() {
     setSaving(true);
     try {
       const body = { name: formName.trim(), description: formDesc.trim(), image: formImage };
-      let res, data;
+      let res: Response;
+      let data: any;
       if (editingCat) {
         res = await fetch(`${API}/api/categories/${editingCat._id}`, {
           method: 'PATCH',

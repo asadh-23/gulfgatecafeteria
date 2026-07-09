@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
-import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal, clearCart } from '@/src/store/cartSlice';
+import { selectCartCount, toggleCart, selectOrderModalOpen, closeOrderModal } from '@/src/store/cartSlice';
 import { selectSavedCount, hydrateSaved } from '@/src/store/savedSlice';
 import { selectUser, selectIsLoggedIn, logout } from '@/src/store/authSlice';
 import CartDrawer from './CartDrawer';
@@ -33,6 +33,20 @@ export default function Navbar() {
     setMounted(true);
     dispatch(hydrateSaved());
   }, [dispatch]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showUserMenu) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.user-menu-container')) {
+          setShowUserMenu(false);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   const navLinks = [
     { href: '/', label: 'Menu' },
@@ -98,9 +112,9 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Right: Bell + Saved + Cart + Mobile toggle */}
+          {/* Right: Bell + Cart + Mobile toggle */}
           <div className="flex items-center gap-2">
-            {/* Notification Bell — self-contained component */}
+            {/* Notification Bell */}
             <NotificationPanel />
 
             {/* Cart Button */}
@@ -162,7 +176,7 @@ export default function Navbar() {
 
             {/* User Menu — only render after mount to avoid hydration mismatch */}
             {mounted && isLoggedIn && user ? (
-              <div className="relative">
+              <div className="relative user-menu-container">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FFC107]/10 hover:bg-[#FFC107]/20 border border-[#FFC107]/20 transition-all duration-300"
@@ -204,7 +218,6 @@ export default function Navbar() {
                       <button
                         onClick={() => { 
                           dispatch(logout()); 
-                          dispatch(clearCart());
                           setShowUserMenu(false); 
                         }}
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full transition-colors"
@@ -272,10 +285,10 @@ export default function Navbar() {
       onSuccess={() => setShowAuthModal(false)}
     />
 
-    {/* Cart Drawer — rendered outside nav so it overlays the full page */}
+    {/* Cart Drawer */}
     <CartDrawer />
 
-    {/* Order Modal — lives here so it persists when cart drawer closes */}
+    {/* Order Modal */}
     <OrderModal
       isOpen={isOrderModalOpen}
       onClose={() => dispatch(closeOrderModal())}
