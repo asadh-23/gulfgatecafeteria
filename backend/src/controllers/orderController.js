@@ -190,6 +190,14 @@ exports.updateOrderStatus = async (req, res) => {
         }
       }
       
+      // Thank you notification
+      order.notifications.push({
+        type: 'general',
+        message: `🙏 Thank you for your order #${order.orderNumber}! We hope you enjoy your meal. Looking forward to serving you again! 😊`,
+        isRead: false,
+        createdAt: new Date(),
+      });
+
       // Automatically set to completed
       order.status = 'completed';
     }

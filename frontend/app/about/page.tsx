@@ -58,13 +58,69 @@ export default function AboutPage() {
             
             <div className="relative h-96 rounded-2xl overflow-hidden shadow-2xl border border-[#FFC107]/20 group">
               <Image
-                src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&q=80"
-                alt="Restaurant interior"
+                src="https://res.cloudinary.com/cqiajkaj/image/upload/v1783706347/WhatsApp_Image_2026-07-09_at_12.43.51_PM_3_kohyac.jpg"
+                alt="Gulfgate Cafeteria dining area"
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#121212]/60 to-transparent"></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Restaurant Gallery Section */}
+      <section className="py-16 md:py-24 bg-[#0a0a0a]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#FFC107] to-[#FFD54F] bg-clip-text text-transparent mb-4">
+              Our Restaurant
+            </h2>
+            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+              A warm and welcoming space in the heart of Dhaid, Sharjah
+            </p>
+          </div>
+
+          {/* Main featured image */}
+          <div className="relative h-80 sm:h-[500px] rounded-2xl overflow-hidden shadow-2xl border border-[#FFC107]/20 mb-4 group">
+            <Image
+              src="https://res.cloudinary.com/cqiajkaj/image/upload/v1783706330/WhatsApp_Image_2026-07-09_at_12.43.51_PM_1_ydaaan.jpg"
+              alt="Gulfgate Cafeteria main dining hall"
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#121212]/50 to-transparent" />
+            <div className="absolute bottom-4 left-4">
+              <span className="px-4 py-2 bg-[#FFC107] text-[#121212] text-sm font-bold rounded-full shadow-lg">
+                Main Dining Area
+              </span>
+            </div>
+          </div>
+
+          {/* 2x2 grid of remaining photos */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706363/WhatsApp_Image_2026-07-09_at_12.43.52_PM_s5x4me.jpg', label: 'Counter & Beverages' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706356/WhatsApp_Image_2026-07-09_at_12.43.51_PM_dqvr7d.jpg', label: 'Dining Section' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706347/WhatsApp_Image_2026-07-09_at_12.43.51_PM_3_kohyac.jpg', label: 'Seating Area' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706339/WhatsApp_Image_2026-07-09_at_12.43.51_PM_2_kvowp3.jpg', label: 'Window Seats' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706289/WhatsApp_Image_2026-07-09_at_12.43.50_PM_1_yqerqo.jpg', label: 'Interior View' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706276/WhatsApp_Image_2026-07-09_at_12.43.49_PM_ugbjix.jpg', label: 'Dining Tables' },
+              { src: 'https://res.cloudinary.com/cqiajkaj/image/upload/v1783706233/WhatsApp_Image_2026-07-09_at_12.43.48_PM_qnq6tl.jpg', label: 'Restaurant Ambiance' },
+            ].map((photo, idx) => (
+              <div key={idx} className="relative h-52 sm:h-64 rounded-xl overflow-hidden shadow-lg border border-[#FFC107]/15 group hover:border-[#FFC107]/40 transition-all duration-300 hover:-translate-y-1">
+                <Image
+                  src={photo.src}
+                  alt={photo.label}
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121212]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  <p className="text-white text-xs font-semibold text-center">{photo.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
